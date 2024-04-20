@@ -51,11 +51,22 @@ def calibrate_circle(frame, center, radius, separation=10):
         cv2.line(frame, p1[i], p2[i], (0, 255, 0), 2)
         cv2.putText(frame, str(i*separation), p2[i], cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 0), 1, cv2.LINE_AA)
 
+def select_camera_source():
+    # Try different camera indices until one successfully opens
+    for idx in range(3):  # Try up to index 2 (adjust as needed)
+        cap = cv2.VideoCapture(idx)
+        if cap.isOpened():
+            return cap
+    return None  # Return None if no camera is available
+
 # This function captures the frame from the camera, processes it to find circles and lines, and then calculates the measurements.
 def take_measure(threshold_img, threshold_ln, minLineLength, maxLineGap, diff1LowerBound, diff1UpperBound, diff2LowerBound, diff2UpperBound, min_angle, max_angle, min_value, max_value, units):
     global is_active
-    cap = cv2.VideoCapture(0)  # 0 for the default camera, you can change the index if you have multiple cameras
-
+    cap = select_camera_source()
+    if cap is None:
+        print("Error: No camera available")
+        return
+    
     # while True:
     while is_active and cap.isOpened():
         ret, frame = cap.read()  # Capture frame-by-frame
@@ -189,6 +200,8 @@ def take_measure(threshold_img, threshold_ln, minLineLength, maxLineGap, diff1Lo
                 # Send reading to the frontend
                 yield "data: {}\n\n".format(json.dumps({"value": "%.2f" % val, "units": units}))
 
+                cv2.putText(img2, "Indicator OK!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2, cv2.LINE_AA)
+
             else:
                 cv2.putText(img2, "Can't find the indicator!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2, cv2.LINE_AA)
 
@@ -241,22 +254,23 @@ units = "miles"
 def gauge_reading():
     return render_template('gauge_reading.html')
 
-
-@app.route('/stream')
-def stream():
-    return Response(take_measure(threshold_img, threshold_ln, minLineLength, maxLineGap,
-                                 diff1LowerBound, diff1UpperBound, diff2LowerBound, diff2UpperBound,
-                                 min_angle, max_angle, min_value, max_value, units), mimetype='text/event-stream')
-
-
 @app.route('/video_feed')
 def video_feed():
     return Response(take_measure(threshold_img, threshold_ln, minLineLength, maxLineGap, 
                                  diff1LowerBound, diff1UpperBound, diff2LowerBound, diff2UpperBound, 
                                  min_angle, max_angle, min_value, max_value, units), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+# Function to send SSE for gauge readings
+def send_gauge_readings():
+    reading = take_measure(threshold_img, threshold_ln, minLineLength, maxLineGap, 
+                             diff1LowerBound, diff1UpperBound, diff2LowerBound, diff2UpperBound, 
+                             min_angle, max_angle, min_value, max_value, units)
+    # Send the reading as an SSE message
+    yield f"data: {reading}\n\n"
 
-
+@app.route('/stream')
+def stream():
+    return Response(send_gauge_readings(), mimetype='text/event-stream')
 
 @app.route('/')
 def index():
@@ -282,8 +296,8 @@ def login():
         if USERS.get(username) == password:
             session['username'] = username
             flash('You have successfully logged in!', 'success')
-            flash('Now you can access the special feature from the "Explore Tab"', 'success')
-            return redirect(url_for('explore'))
+            flash('Now you can access the special feature in the "Explore Tab"', 'success')
+            return redirect(url_for('login'))
         # return 'Invalid username or password! Please try again.'
         flash('Invalid Username or Password! Please try again.', 'error')
     return render_template("login.html")
@@ -311,7 +325,9 @@ def start():
     global is_active
     if not is_active:
         is_active = True
-        threading.Thread(target=take_measure).start()
+        threading.Thread(target=take_measure, args=(threshold_img, threshold_ln, minLineLength, maxLineGap, 
+                                                    diff1LowerBound, diff1UpperBound, diff2LowerBound, diff2UpperBound, 
+                                                    min_angle, max_angle, min_value, max_value, units)).start()
     return redirect(url_for('gauge'))
 
 @app.route('/stop', methods=['POST'])
@@ -322,6 +338,5 @@ def stop():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
-    # app.run(debug=False,host='0.0.0.0')
+    app.run(debug=False,host='0.0.0.0')
 
