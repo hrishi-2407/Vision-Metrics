@@ -260,17 +260,11 @@ def video_feed():
                                  diff1LowerBound, diff1UpperBound, diff2LowerBound, diff2UpperBound, 
                                  min_angle, max_angle, min_value, max_value, units), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# Function to send SSE for gauge readings
-def send_gauge_readings():
-    reading = take_measure(threshold_img, threshold_ln, minLineLength, maxLineGap, 
-                             diff1LowerBound, diff1UpperBound, diff2LowerBound, diff2UpperBound, 
-                             min_angle, max_angle, min_value, max_value, units)
-    # Send the reading as an SSE message
-    yield f"data: {reading}\n\n"
-
 @app.route('/stream')
 def stream():
-    return Response(send_gauge_readings(), mimetype='text/event-stream')
+    return Response(take_measure(threshold_img, threshold_ln, minLineLength, maxLineGap,
+                                 diff1LowerBound, diff1UpperBound, diff2LowerBound, diff2UpperBound,
+                                 min_angle, max_angle, min_value, max_value, units), mimetype='text/event-stream')
 
 @app.route('/')
 def index():
