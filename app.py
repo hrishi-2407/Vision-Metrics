@@ -51,24 +51,13 @@ def calibrate_circle(frame, center, radius, separation=10):
         cv2.line(frame, p1[i], p2[i], (0, 255, 0), 2)
         cv2.putText(frame, str(i*separation), p2[i], cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 0), 1, cv2.LINE_AA)
 
-def select_camera_source():
-    # Try different camera indices until one successfully opens
-    for idx in range(3):  # Try up to index 2 (adjust as needed)
-        cap = cv2.VideoCapture(idx)
-        if cap.isOpened():
-            return cap
-    return None  # Return None if no camera is available
-
 # This function captures the frame from the camera, processes it to find circles and lines, and then calculates the measurements.
 def take_measure(threshold_img, threshold_ln, minLineLength, maxLineGap, diff1LowerBound, diff1UpperBound, diff2LowerBound, diff2UpperBound, min_angle, max_angle, min_value, max_value, units):
     global is_active
-    cap = select_camera_source()
-    if cap is None:
-        print("Error: No camera available")
-        return
+    cap = cv2.VideoCapture(0)
     
     # while True:
-    while is_active and cap.isOpened():
+    while is_active:
         ret, frame = cap.read()  # Capture frame-by-frame
         if not ret:
             print("Error: Failed to capture frame")
