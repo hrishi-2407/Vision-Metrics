@@ -1,4 +1,8 @@
 Flask==2.2.2
 numpy==1.26.4
 opencv_python==4.8.1.78
+<<<<<<< HEAD
 Gunicorn
+=======
+Gunicorn
+>>>>>>> 1eceac9cbc5932b9b97b27e347da8e38fac0e590
